@@ -3,6 +3,8 @@ import json
 import pickle
 import sys
 
+from pathlib import Path
+
 #== File handling functions ================================================
 def save_json(data:dict, path:str):
     with open(path, "x") as outfile:
@@ -23,17 +25,24 @@ def load_pickle(path:str):
     return data
 
 #== Location utils ==========================================================
+def join_paths(base_path:str, relative_path:str):
+    path = os.path.join(base_path, relative_path)
+    path = str(Path(path).resolve()) #convert base/x/x/../../src to base/src
+    return path 
+
 def get_base_dir():
     """automatically gets root dir of framework"""
     #gets path of the src folder 
     cur_path = os.path.abspath(__file__)
     src_path = cur_path.split('/src')[0] + '/src'
-    
+    base_path = src_path.split('/src')[0]    
+
     #can be called through a symbolic link, if so go out one more dir.
     if os.path.islink(src_path):
-        src_path = os.path.abspath(os.readlink(src_path))
-    
-    base_path = src_path.split('/src')[0]    
+        symb_link = os.readlink(src_path)
+        src_path = join_paths(base_path, symb_link)
+        base_path = src_path.split('/src')[0]    
+        
     return base_path
 
 #== Logging utils ===========================================================

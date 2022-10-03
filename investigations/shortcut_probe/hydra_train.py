@@ -3,9 +3,7 @@ import os
 import shutil
 import pprint
 
-#from src.trainers.trainer import Trainer
-from src.trainers.trainer import Trainer
-
+from src.trainers.hydra_trainer import HydraTrainer
 from src.utils.general import save_script_args
 
 #### ArgParse for Model details
@@ -18,20 +16,18 @@ group.add_argument('--temp', action='store_const',  const=temp_dir, dest='exp_na
 
 model_parser.add_argument('--transformer', default='bert',     type=str,  help='[bert, roberta, electra ...]')
 model_parser.add_argument('--max_len',     default=512,        type=int,  help='max length of transformer inputs')
-model_parser.add_argument('--data_set',    default='imdb',     type=str,  help='dataset to train the system on')
 model_parser.add_argument('--num_seeds',   default=1,          type=int,  help='number of seeds to train')
-
-model_parser.add_argument('--seed_num',   default=None,         type=int,  help='if an extra seed is to be trained')
-model_parser.add_argument('--force',       action='store_true',            help='if set, will overwrite any existing directory')
+model_parser.add_argument('--data_set',    default='imdb',     type=str,  help='dataset to train the system on')
+model_parser.add_argument('--force',       action='store_true',           help='if set, will overwrite any existing directory')
 
 #### ArgParse for Training details
 train_parser = argparse.ArgumentParser(description='Arguments for training the system')
 
 train_parser.add_argument('--data_set',  default='imdb',  type=str,  help='dataset to train the system on')
-train_parser.add_argument('--lim',       default=None,    type=int,  help='size of data subset to use (for debugging)')
+train_parser.add_argument('--lim',       default=None,    type=int, help='size of data subset to use (for debugging)')
 train_parser.add_argument('--print_len', default=100,     type=int,  help='logging training print size')
 
-train_parser.add_argument('--epochs',   default=10,    type=int,     help='numer of epochs to train')
+train_parser.add_argument('--epochs',   default=3,    type=int,     help='numer of epochs to train')
 train_parser.add_argument('--lr',       default=1e-5,  type=float,   help='training learning rate')
 train_parser.add_argument('--bsz',      default=4,     type=int,     help='training batch size')
 train_parser.add_argument('--epsilon',  default=1e-8,  type=str,     help='Specify the AdamW loss epsilon')
@@ -58,19 +54,11 @@ if __name__ == '__main__':
         if exp_folders[0] == 'trained_models' and os.path.isdir(exp_name) and len(exp_folders)>=2:
             shutil.rmtree(exp_name)
 
-    # If extra seed, set
-    if model_args.seed_num:
-        seed_path = model_args.exp_name+'/'+str(model_args.seed_num)
-        assert(os.path.isdir(model_args.exp_name) and not os.path.isdir(seed_path))
-        trainer = Trainer(seed_path, model_args)
-        trainer.train(train_args)
-
     # Train system
-    else:
-        for i in range(model_args.num_seeds):
-            exp_name = model_args.exp_name + '/' + str(i)
-            trainer = Trainer(exp_name, model_args)
-            trainer.train(train_args)
+    for i in range(model_args.num_seeds):
+        exp_name = model_args.exp_name + '/' + str(i)
+        trainer = HydraTrainer(exp_name, model_args)
+        trainer.train(train_args)
 
     #############################################################################################
         

@@ -80,9 +80,9 @@ def is_pair(data_name:str):
 
 def rand_select(data:list, lim:None):
     if data is None: return None
-    random.seed(1)
+    random_seed = random.Random(1)
     data = data.copy()
-    random.shuffle(data)
+    random_seed.shuffle(data)
     return data[:lim]
 
 def to_namespace(*args:List):

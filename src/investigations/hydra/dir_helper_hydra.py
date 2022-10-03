@@ -9,9 +9,9 @@ from types import SimpleNamespace
 from collections import namedtuple, OrderedDict
 from scipy.stats import pearsonr, spearmanr
 
-from ..utils.general import load_json, save_json
+from ...utils.general import load_json, save_json
 
-class DirHelper():
+class DirHelperHydra():
     def __init__(self, exp_path:str=None):
         self.exp_path = exp_path
 
@@ -60,7 +60,9 @@ class DirHelper():
     
     def reset_metrics(self):
         self.metrics = OrderedDict()
-        self.acc = np.zeros(2)
+        self.layer_hits = np.zeros(12)
+        self.num_preds  = 0
+        
         self.preds, self.labels = [], []
         self.samples = 0
 
@@ -70,41 +72,27 @@ class DirHelper():
             self.metrics[key] += val
         self.samples += 1
    
-    def update_acc_metrics(self, hits:int=0, num_preds:int=0):
-        self.acc += [hits, num_preds]        
-                
-    def update_preds(self, y:int, label:int):
-        self.preds.append(y)
-        self.labels.append(label)
+    def update_layer_acc_metrics(self, layer_hits:list, num_preds:int=0):
+        self.layer_hits += layer_hits        
+        self.num_preds  += num_preds
         
     def print_perf(self, mode:str, epoch:int, step:int):
         """returns and logs performance"""
         metrics = OrderedDict([(k, v/self.samples) for k, v in self.metrics.items()])
-        acc  = f'{self.acc[0]/self.acc[1]:.3f}' if self.acc[0]>0 else 0
-        metrics_str = [f'{k} {v:6.3f}' for k, v in metrics.items()]
+        layer_accs = [hits/self.num_preds for hits in self.layer_hits]
+        
+        accs_str = ' '.join([f'{acc:.3f}' for acc in layer_accs])
+        acc_dict = OrderedDict([(f'acc_{k}',acc) for k, acc in enumerate(layer_accs)])
 
+        metrics_str = [f'{k} {v:6.3f}' for k, v in metrics.items()]
+        
         # logging performance
         step_print = step if mode=='train' else mode
         metrics_str = '  '.join(metrics_str)
-        self.log(f'{epoch:<3} {step_print:<5}  acc {acc}  {metrics_str}')
+        self.log(f'{epoch:<3} {step_print:<5}  {metrics_str}  acc {accs_str}')
         
         self.reset_metrics()                        
-        return SimpleNamespace(acc=float(acc), **metrics)
-    
-    def print_reg_perf(self, mode:str, epoch:int, step:int):
-        metrics = OrderedDict([(k, v/self.samples) for k, v in self.metrics.items()])
-        metrics['RMSE']  = metrics['loss']**0.5
-        metrics['pear']  = pearsonr(self.preds, self.labels)[0]
-        metrics['spear'] = spearmanr(self.preds, self.labels)[0]
-        metrics_str = [f'{k} {v:6.3f}' for k, v in metrics.items()]
-
-        # logging performance
-        step_print = step if mode=='train' else mode
-        metrics_str = '  '.join(metrics_str)
-        self.log(f'{epoch:<3}  {step_print:<5} {metrics_str:<5}')
-        
-        self.reset_metrics()                        
-        return SimpleNamespace(**metrics)
+        return SimpleNamespace(**acc_dict, **metrics)
     
     #== Utility Methods ==================================================================#
     
