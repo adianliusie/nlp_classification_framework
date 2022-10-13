@@ -1,2 +1,4 @@
 CMDs
 trained_models
+scripts
+!scripts/*.sh
