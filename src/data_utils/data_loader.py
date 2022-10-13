@@ -16,6 +16,7 @@ class DataLoader:
         self.tokenizer = load_tokenizer(trans_name)
     
     #== Data processing (i.e. tokenizing text) =====================================================#
+    @lru_cache(maxsize=5)
     def prep_split(self, data_name:str, mode:str, lim=None):
         data = self.load_split(data_name, mode, lim)
         if is_single(data_name): output = self._prep_ids(data) 
@@ -23,6 +24,7 @@ class DataLoader:
         else: raise ValueError(f"invalid data set: {data_name}")
         return output
     
+    @lru_cache(maxsize=5)
     def prep_data(self, data_name, lim=None):
         train, dev, test = self.load_data(data_name=data_name, lim=lim)
         if is_single(data_name):

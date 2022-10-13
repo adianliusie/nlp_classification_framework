@@ -1,4 +1,5 @@
 import random
+import re
 
 from tqdm import tqdm 
 from copy import deepcopy
@@ -29,6 +30,7 @@ def load_imdb()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
     train_data = list(dataset['train'])
     train, dev = _create_splits(train_data, 0.8)
     test       = list(dataset['test'])
+    train, dev, test = _remove_html_tags(train, dev, test)
     return train, dev, test
 
 def load_yelp()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
@@ -63,7 +65,6 @@ def load_sst()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
     return train, dev, test
 
 #== Helper Methods for processing the data sets ========================================================#
-
 def _create_splits(examples:list, ratio=0.8)->Tuple[list, list]:
     examples = deepcopy(examples)
     split_len = int(ratio*len(examples))
@@ -85,6 +86,17 @@ def _rename_key(ex:dict, old_key:str='content', new_key:str='text'):
     """ convert key name from the old_key to 'text' """
     ex = ex.copy()
     ex[new_key] = ex.pop(old_key)
+    return ex
+
+def _remove_html_tags(train:list, dev:list, test:list):
+    train = [_remove_html_tags_ex(ex) for ex in train]
+    dev   = [_remove_html_tags_ex(ex) for ex in dev]
+    test  = [_remove_html_tags_ex(ex) for ex in test]
+    return train, dev, test
+
+def _remove_html_tags_ex(ex:dict):
+    CLEANR = re.compile('<.*?>') 
+    ex['text'] = re.sub(CLEANR, '', ex['text'])
     return ex
 
 #== Functions to synthetically add shortcuts =============================================================#
