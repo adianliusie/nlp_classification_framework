@@ -76,20 +76,22 @@ class Trainer():
             perf = self.system_eval(dev, epoch, mode='dev')
             if args.wandb:
                 wandb.log({'dev_loss':perf.loss, 'dev_acc':perf.acc})
-
-            #== TEST ====================================================#
-            test_perf = self.system_eval(test, epoch, mode='test')
-            
+        
             # save performance if best dev performance 
             if perf.acc > best_epoch[2]:
                 best_epoch = (epoch, perf.loss, perf.acc)
                 if args.save: self.save_model()
                 else: self.generate_probs(data=test, data_name=args.data_set)
-                
+            
+            self.dir.log(f'best dev epoch: {best_epoch}')
+            
             if epoch - best_epoch[0] >= 3:
                 break
-             
-        self.dir.log(f'best dev epoch: {best_epoch}')
+        
+        if args.save:
+            #== Final TEST performance ==================================#
+            self.load_model()
+            test_perf = self.system_eval(test, epoch, mode='test')
     
     def model_output(self, batch):
         output = self.model(input_ids=batch.input_ids, 
@@ -103,11 +105,10 @@ class Trainer():
         hits = torch.sum(hits[batch.labels != -100]).item()
         num_preds = torch.sum(batch.labels != -100).item()
 
-        return SimpleNamespace(loss=loss, logits=logits, 
+        return SimpleNamespace(loss=loss, logits=logits, h=output.h,
                                hits=hits, num_preds=num_preds)
 
     #== EVAL METHODS ================================================================#
-    
     @no_grad
     def system_eval(self, data, epoch:int, mode='dev'):
         self.dir.reset_metrics()         
@@ -120,30 +121,7 @@ class Trainer():
         perf = self.dir.print_perf(mode, epoch, 0)
         return perf
 
-    def generate_probs(self, data:list, data_name:str):
-        probabilties = self._probs(data)
-        self.dir.save_probs(probabilties, data_name, mode='test')
-
-    @no_grad
-    def _probs(self, data):
-        """get model predictions for given data"""
-        self.model.eval()
-        self.to(self.device)
-        eval_batches = self.batcher(data=data, bsz=1, shuffle=False)
-
-        probabilties = {}
-        for batch in eval_batches:
-            ex_id = batch.ex_id[0]
-            output = self.model_output(batch)
-
-            y = output.logits.squeeze(0)
-            if y.shape and y.shape[-1] > 1:  # Get probabilities of predictions
-                y = F.softmax(y, dim=-1)
-            probabilties[ex_id] = y.cpu().numpy()
-        return probabilties
-    
     #== MODEL UTILS  ================================================================#
-    
     def save_model(self, name:str='base'):
         device = next(self.model.parameters()).device
         self.model.to("cpu")
@@ -161,7 +139,6 @@ class Trainer():
         self.batcher.to(device)
 
     #==  WANDB UTILS  ===============================================================#
-    
     def set_up_wandb(self, args:namedtuple):
         wandb.init(project=args.wandb, entity="adian",
                    name=self.dir.exp_name, group=self.dir.base_name, 
