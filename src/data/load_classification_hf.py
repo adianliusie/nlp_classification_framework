@@ -13,8 +13,10 @@ class SingleText(TypedDict):
     text : str
     label : int
 
-SINGLE_TASKS = ['imdb', 'rt', 'sst', 'yelp', 'boolq']
-def load_single_texts(data_name)->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
+HF_CLS_DATA = ['imdb', 'rt', 'sst', 'yelp', 'boolq']
+
+def load_hf_cls_data(data_name)->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
+    """ loading sentiment classification datsets available on huggingface hub """
     if   data_name == 'imdb':  train, dev, test = load_imdb()
     elif data_name == 'rt':    train, dev, test = load_rotten_tomatoes()
     elif data_name == 'sst':   train, dev, test = load_sst()

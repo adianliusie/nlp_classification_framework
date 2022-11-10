@@ -20,7 +20,8 @@ if __name__ == '__main__':
     model_parser.add_argument('--path', type=str, help='path to experiment')
     model_parser.add_argument('--transformer', default='electra-base',type=str, help='[bert, roberta, electra ...]')
     model_parser.add_argument('--maxlen', default=512, type=int, help='max length of transformer inputs')
-    
+    model_parser.add_argument('--num-classes', default=2, type=int, help='number of classes (3 for NLI)')
+
     ### Training arguments
     train_parser = argparse.ArgumentParser(description='Arguments for training the system')
     train_parser.add_argument('--dataset', default='imdb', type=str, help='dataset to train the system on')

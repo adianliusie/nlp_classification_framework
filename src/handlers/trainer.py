@@ -35,7 +35,7 @@ class Trainer(object):
         self.model_args = args
         self.data_handler = DataHandler(trans_name=args.transformer)
         self.batcher = Batcher(max_len=args.maxlen)
-        self.model = TransformerModel(trans_name=args.transformer, num_classes=2)
+        self.model = TransformerModel(trans_name=args.transformer, num_classes=args.num_classes)
 
     #== Main Training Methods =====================================================================#
     def train(self, args: namedtuple):

@@ -3,7 +3,7 @@ import random
 from copy import deepcopy
 from typing import List, Dict, Tuple, TypedDict
 from datasets import load_dataset
-from .load_single import _create_splits, _rename_keys
+from .load_classification_hf import _create_splits, _rename_keys
 
 #== Main loading function ==============================================================================# 
 class TextPair(TypedDict):
@@ -12,8 +12,9 @@ class TextPair(TypedDict):
     text_2 : str
     label  : int 
 
-PAIRS_TASKS = ['snli', 'mnli', 'paws', 'hans', 'qqp']
-def load_text_pairs(data_name):
+HF_NLI_DATA = ['snli', 'mnli', 'paws', 'hans', 'qqp']
+def load_hf_nli_data(data_name):
+    """ loading NLI datsets available on huggingface hub """
     if data_name   == 'snli': train, dev, test = load_snli()
     elif data_name == 'mnli': train, dev, test = load_mnli()
     elif data_name == 'paws': train, dev, test = load_paws()

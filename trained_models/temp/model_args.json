@@ -1,0 +1,6 @@
+{
+  "path": "trained_models/temp",
+  "transformer": "electra-base",
+  "maxlen": 512,
+  "num_classes": 3
+}

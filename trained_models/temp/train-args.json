@@ -1,0 +1,10 @@
+{
+  "dataset": "snli",
+  "lim": 10000,
+  "epochs": 10,
+  "bsz": 4,
+  "lr": 1e-05,
+  "log_every": 200,
+  "wandb": false,
+  "device": "cuda"
+}
