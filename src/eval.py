@@ -1,19 +1,8 @@
-import os
-import json
-
 import argparse
-import logging
 from statistics import mode
 
 from handlers.evaluater import Evaluator
 from utils.general import save_script_args
-
-# Load logger
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 
 if __name__ == '__main__':

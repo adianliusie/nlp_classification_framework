@@ -54,7 +54,7 @@ class Trainer(object):
         self.model_loss = CrossEntropyLoss(self.model)
 
         # Reset loss metrics
-        self.best_dev = {}
+        self.best_dev = (0, {})
         self.model_loss.reset_metrics()
 
         # Get train, val, test split of data
@@ -96,9 +96,14 @@ class Trainer(object):
             self.log_metrics(metrics = metrics, mode = 'dev')
             if args.wandb: self.log_wandb(metrics, mode = mode)
 
-            if metrics['acc'] > self.best_dev.get('acc', 0):
-                self.best_dev = metrics.copy()
+            if metrics['loss'] < self.best_dev[1].get('loss', float('inf')):
+                self.best_dev = (epoch, metrics.copy())
                 self.save_model()
+            
+            self.log_metrics(metrics=self.best_dev[1], mode='dev-best', epoch=self.best_dev[0])
+
+            if epoch - self.best_dev[0] >= 5:
+                break
 
     @torch.no_grad()
     def validate(self, data, bsz:int=1, mode='dev'):
@@ -124,7 +129,8 @@ class Trainer(object):
     def log_metrics(self, metrics: dict, mode: str, epoch:str = None, ex_step: int = None):
         # Create logging header
         if   mode == 'train'        : msg = f'epoch {epoch:<2}   ex {ex_step:<7} '
-        elif mode in ['dev', 'test']: msg = f'{mode:<10}  ||| '
+        elif mode in ['dev', 'test']: msg = f'{mode:<10}' + 12 * ' '
+        elif mode == 'dev-best'     : msg = f'best-dev (epoch {epoch})    '    
         else: raise ValueError()
 
         # Get values from Meter and print all
