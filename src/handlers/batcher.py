@@ -20,11 +20,11 @@ class Batcher:
   
     def batchify(self, batch:List[list]):
         """each input is input ids and mask for utt, + label"""
-        sample_id, input_ids, labels = zip(*batch)  
+        ex_id, input_ids, labels = zip(*batch)  
         input_ids, attention_mask = self._get_padded_ids(input_ids)
         labels = torch.LongTensor(labels).to(self.device)
         return SimpleNamespace(
-            sample_id=sample_id, 
+            ex_id=ex_id, 
             input_ids=input_ids, 
             attention_mask=attention_mask, 
             labels=labels

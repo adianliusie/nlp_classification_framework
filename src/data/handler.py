@@ -7,6 +7,7 @@ from copy import deepcopy
 from functools import lru_cache
 
 from models.tokenizers import load_tokenizer
+from .load_classification_cad import load_cad_cls_data, CAD_CLS_DATA
 from .load_classification_hf import load_hf_cls_data, HF_CLS_DATA
 from .load_nli_hf import load_hf_nli_data, HF_NLI_DATA
 
@@ -58,8 +59,9 @@ class DataHandler:
     @staticmethod
     @lru_cache(maxsize=5)
     def load_data(data_name:str, lim=None):
-        if   is_classification(data_name): train, dev, test = load_hf_cls_data(data_name)
-        elif is_nli(data_name)           : train, dev, test = load_hf_nli_data(data_name)
+        if   data_name in HF_CLS_DATA : train, dev, test = load_hf_cls_data(data_name)
+        elif data_name in CAD_CLS_DATA: train, dev, test = load_cad_cls_data(data_name)
+        elif data_name in HF_NLI_DATA : train, dev, test = load_hf_nli_data(data_name)
         else: raise ValueError(f"invalid dataset name: {data_name}")
             
         if lim:
@@ -72,7 +74,7 @@ class DataHandler:
     
 #== Misc utils functions ============================================================================#
 def is_classification(data_name:str):
-    return data_name in HF_CLS_DATA
+    return data_name in HF_CLS_DATA + CAD_CLS_DATA
 
 def is_nli(data_name:str):
     return data_name in HF_NLI_DATA

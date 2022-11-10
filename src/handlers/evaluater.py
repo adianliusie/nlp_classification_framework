@@ -1,220 +1,103 @@
-import logging
-
 import torch
-import sacrebleu
-from collections import namedtuple
+import pickle
+import numpy as np
+import os
 
-from handlers.trainer import Trainer
+from tqdm import tqdm 
+import torch.nn.functional as F
 
+
+from .trainer import Trainer
 from data.handler import DataHandler
-from handlers.batcher import Batcher
-from models.models import load_model 
-
-
-# Create Logger
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-def create_lengths_ref(label_id):
-    # Get the index of eos for a single example
-    return (label_id == 1).nonzero().item() + 1
-
-
-def create_temporary_labels(output):
-    # Get the index of eos
-    eos = (output == 1).nonzero(as_tuple = True)[1]
-
-    # Shift the output by a step
-    label_ids = output[:, 1:]
-
-    # Now ensure all tokens past eos are -100
-    for i, idx in enumerate(eos):
-        label_ids[i, idx:] = -100
-    
-    # Prune the label_ids to the shortest length
-    label_ids = label_ids[:, :eos.max().item()]
-
-    return label_ids.contiguous(), eos
-
-
-def compute_log_confidence_unc(log_probs):
-    confidence = log_probs.max(dim = -1).values
-    confidence = -confidence
-    return confidence
-
-
-def compute_entropy(log_probs):
-    entropy = log_probs * torch.exp(log_probs)
-    entropy = entropy.sum(-1)
-    return -entropy
-
+from loss.cross_entropy import CrossEntropyLoss
 
 class Evaluator(Trainer):
-    def __init__(self, path):
-        self.exp_path = path
-        args = self.load_args('model_args.json')
-        self.setup_helpers(args)
+    """ Evaluator class- inherits Trainer so has all experiment methods
+        class takes care of evaluation and automatic caching of results"""
 
-        # Need this for the proxy model, not the best solution...
-        self.train_args = self.load_args('train-args.json')
+    def __init__(self, path, device):
+        self.exp_path = path
+        self.device = device
+
+    def setup_helpers(self):
+        args = self.load_args('model_args.json')
+        super().setup_helpers(args)
+        self.load_model()
+        self.model_loss = CrossEntropyLoss(self.model)
+
+    #== Model Prediction Methods ==================================================================#
+    def load_preds(self, dataset:str, mode:str)->dict:
+        probs = self.load_probs(dataset, mode)
+        preds = {}
+        for ex_id, probs in probs.items():
+            preds[ex_id] = int(np.argmax(probs, axis=-1))  
+        return preds
+        
+    def load_probs(self, dataset:str, mode:str, calibrate=False)->dict:
+        """ loads cached probabilities, if not cached then generate """
+        if not self.probs_exist(dataset, mode):
+            self.setup_helpers()
+            probs = self.generate_probs(dataset, mode)
+            self.cache_probs(probs, dataset, mode)
+        probs = self.load_cached_probs(dataset, mode)
+        return probs
 
     @torch.no_grad()
-    def decode(self, args: namedtuple):
-        # Get dataset
-        data = self.data_handler.prep_data_single(args.dataset)
-
-        # Load model
-        self.load_model()
-
-        # Set arguments
-        if hasattr(self.model, 'set_arguments'):
-            self.model.set_arguments(self.train_args)
-
-        # Device management
-        self.to(args.device)
-    
-        # Setup model for translation
+    def generate_probs(self, dataset:str, mode:str='test'):
+        """ get model probabilities for each example in dataset"""
         self.model.eval()
-
-        # Set batcher to eval (no maxlen)
-        self.batcher.eval()
-
-        # Print number of model parameters
-        self.log_num_params()
-
-        # Create batched dataset
-        dataloader = self.batcher(
-            data = data, 
-            numtokens = args.num_tokens, 
-            numsequences = args.num_sequences, 
-            return_last = True,
+        self.to(self.device)
+        eval_data = self.data_handler.prep_split(dataset, mode)
+        eval_batches = self.batcher(
+            data = eval_data, 
+            bsz = 1, 
             shuffle = False
-        )
+        )        
+        probs = {}
+        
+        for batch in tqdm(eval_batches):
+            ex_id = batch.ex_id[0]
+            output = self.model_loss(batch)
 
-        # Save all predictions
-        all_preds = []
+            logits = output.logits.squeeze(0)
+            if logits.shape and logits.shape[-1] > 1:  # Get probabilities of predictions
+                prob = F.softmax(logits, dim=-1)
+            probs[ex_id] = prob.cpu().numpy()
+        return probs
 
-        logger.info("Starting Decode")
-        for (i, batch) in enumerate(dataloader):
-            
-            # Batch size will be repeatedly used
-            batch_size = batch.input_ids.size(0)
+    #== loading and saving functions ==============================================================#
+    def cache_probs(self, probs, dataset:str, mode:str):
+        eval_name = f'{dataset}_{mode}'
+        pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
+        print(pred_path)
+        with open(pred_path, 'wb') as handle:
+            pickle.dump(probs, handle)
+    
+    def load_cached_probs(self, dataset:str, mode:str):
+        eval_name = f'{dataset}_{mode}'
+        pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
+        with open(pred_path, 'rb') as handle:
+            probs = pickle.load(handle)
+        return probs
+    
+    def probs_exist(self, dataset:str, mode:str):
+        eval_name = f'{dataset}_{mode}'
+        pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
+        return os.path.isfile(pred_path)
 
-            # Generate prediction
-            output = self.model.generate(
-                input_ids = batch.input_ids, 
-                attention_mask = batch.attention_mask, 
-                max_length = args.decode_max_length,
-                num_beams = args.num_beams,
-                length_penalty = args.length_penalty,
-                no_repeat_ngram_size = args.no_repeat_ngram_size,
-                num_return_sequences = args.num_beams,
-                output_scores = True,
-                return_dict_in_generate = True,
-            )
+    #== general eval methods ======================================================================#
+    @staticmethod
+    def load_labels(dataset:str, mode:str='test', lim=None)->dict:
+        eval_data = DataHandler.load_split(dataset, mode)
+        labels_dict = {}
+        for ex in eval_data:
+            labels_dict[ex.ex_id] = ex.label
+        return labels_dict
 
-            # Generate reference prediction
-            reference_output = self.model(
-                input_ids = batch.input_ids, 
-                attention_mask = batch.attention_mask, 
-                labels = batch.label_ids,
-            )
+    @staticmethod
+    def calc_acc(preds, labels):
+        assert preds.keys() == labels.keys(), "keys don't match"
+        hits = sum([preds[idx] == labels[idx] for idx in labels.keys()])
+        acc = hits/len(preds)
+        return 100*acc
 
-            # Save all predictions within batch for logit generation
-            batch_preds = []
-
-            for batch_id in range(batch_size):
-
-                # Generate teacher-forcing prediction
-                reference_pred = reference_output.logits[batch_id].argmax(dim = -1)
-                reference_pred_text = self.data_handler.tokenizer.decode(reference_pred, skip_special_tokens=True)
-                proxies = reference_output.proxies[batch_id].item() if hasattr(reference_output, 'proxies') else None
-                length = create_lengths_ref(batch.label_ids[batch_id])
-
-                # Compute confidence and entropies:
-                log_probs = torch.log_softmax(reference_output.logits[batch_id, :length], dim = -1)
-
-                # Individual prediction
-                pred = {
-                    'id': batch.ex_id[batch_id],
-                    'ref': batch.label_text[batch_id],
-                    'ref-pred': reference_pred.cpu().tolist(),
-                    'ref-pred-dec': reference_pred_text,
-                    'ref-len': length,
-                    'ref-conf': compute_log_confidence_unc(log_probs).cpu().tolist(),
-                    'ref-ent': compute_entropy(log_probs).cpu().tolist(),
-                    'proxies': proxies,
-                }
-
-                # Iterate over all beams
-                for beam_id in range(args.num_beams):
-
-                    # Get index of sample 
-                    idx = beam_id + batch_id * args.num_beams
-
-                    # Get the beam and decode
-                    beam = output.sequences[idx]
-                    out = self.data_handler.tokenizer.decode(beam, skip_special_tokens=True)
-
-                    # Save all decoded outputs
-                    pred[f'beam-{beam_id}'] = beam
-                    pred[f'beam-{beam_id}-dec'] = out
-                    pred[f'beam-{beam_id}-score'] = output.sequences_scores[idx].item()
-                
-                # Save all beams within a single list
-                batch_preds.append(pred)
-
-            # Iterate over all beams and generate logits for uncertainties
-            for beam_id in range(args.num_beams):
-                
-                # Create a batch of labels
-                temp_label_ids = [batch_preds[i][f'beam-{beam_id}'] for i in range(batch_size)]
-                temp_label_ids = torch.stack(temp_label_ids, dim = 0)
-                temp_label_ids, lengths = create_temporary_labels(temp_label_ids)
-
-                # Feed through the model again to generate logits
-                output = self.model(
-                    input_ids = batch.input_ids, 
-                    attention_mask = batch.attention_mask, 
-                    labels = temp_label_ids,
-                )
-
-                # Get the log-probs and compute both confidence and entropy
-                log_probs = torch.log_softmax(output.logits, dim = -1)
-
-                # Computing confidence and entropy
-                confidence = compute_log_confidence_unc(log_probs)
-                entropy = compute_entropy(log_probs)
-
-                # Adding example specific information
-                for batch_id, length in enumerate(lengths):
-                    
-                    batch_preds[batch_id][f'beam-{beam_id}-len'] = length.item()
-                    batch_preds[batch_id][f'beam-{beam_id}-conf'] = confidence[batch_id][:length].cpu().tolist()
-                    batch_preds[batch_id][f'beam-{beam_id}-ent'] = entropy[batch_id][:length].cpu().tolist()
-                    batch_preds[batch_id][f'beam-{beam_id}'] = batch_preds[batch_id][f'beam-{beam_id}'].cpu().tolist()
-
-            # Save all predicitons in a master list
-            all_preds.extend(batch_preds)
-
-        # Corpus level scoring teacher-forcing
-        refscore = sacrebleu.corpus_bleu(
-            [p['ref-pred-dec'] for p in all_preds],
-            [[p['ref'] for p in all_preds]],
-        ).score
-
-        # Corpus level scoring free-running
-        freescore = sacrebleu.corpus_bleu(
-            [p['beam-0-dec'] for p in all_preds],
-            [[p['ref'] for p in all_preds]],
-        ).score
-
-        logger.info("Finished Decode")
-        logger.info(f"TF Sacrebleu performance: {refscore}")
-        logger.info(f"FR Sacrebleu performance: {freescore}")
-
-        return [refscore, freescore] + all_preds

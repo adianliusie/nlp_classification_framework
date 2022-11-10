@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, TypedDict
 from datasets import load_dataset
 from functools import lru_cache
 
-#== Main loading function =================================================================================# 
+#== Main loading function =========================================================================# 
 class SingleText(TypedDict):
     """Output example formatting (only here for documentation)"""
     text : str
@@ -25,7 +25,7 @@ def load_hf_cls_data(data_name)->Tuple[List[SingleText], List[SingleText], List[
     else: raise ValueError(f"invalid single text dataset name: {data_name}")
     return train, dev, test
     
-#== Individual Data set Loader Functions =================================================================#
+#== Individual Data set Loader Functions ==========================================================#
 def load_imdb()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
     dataset = load_dataset("imdb")
     train_data = list(dataset['train'])
@@ -65,7 +65,7 @@ def load_sst()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
     train, dev, test = _rename_keys(train, dev, test, old_key='sentence', new_key='text')
     return train, dev, test
 
-#== Helper Methods for processing the data sets ========================================================#
+#== Util functions for processing data sets =======================================================#
 def _create_splits(examples:list, ratio=0.8)->Tuple[list, list]:
     examples = deepcopy(examples)
     split_len = int(ratio*len(examples))

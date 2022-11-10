@@ -96,7 +96,7 @@ class Trainer(object):
             self.log_metrics(metrics = metrics, mode = 'dev')
             if args.wandb: self.log_wandb(metrics, mode = mode)
 
-            if metrics['acc'] < self.best_dev.get('acc', 0):
+            if metrics['acc'] > self.best_dev.get('acc', 0):
                 self.best_dev = metrics.copy()
                 self.save_model()
 
@@ -175,13 +175,15 @@ class Trainer(object):
         self.exp_path = exp_path
 
         if not os.path.isdir(self.exp_path):
-            logger.info("Creating experiment folder")
             os.makedirs(self.exp_path)
         
         mod_path = os.path.join(self.exp_path, 'models')
         if not os.path.isdir(mod_path):
-            logger.info("Creating experiment-model folder")
             os.makedirs(mod_path)
+
+        eval_path = os.path.join(self.exp_path, 'eval')
+        if not os.path.isdir(eval_path):
+            os.makedirs(eval_path)
 
         self.save_args('model_args.json', args)
 
