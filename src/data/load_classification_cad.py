@@ -15,26 +15,35 @@ CAD_CLS_DATA = ['k-imdb', 'k-imdb-cad', 'k-yelp', 'k-semeval', 'k-amazon']
 def load_cad_cls_data(data_name)->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
     """ loading sentiment classification datsets used in Kaushik et. Al 2021,
         'Learning the Difference that Makes a Difference with Counterfactually Augmented Data' """
-    if   data_name == 'k-imdb-cad' : train, dev, test = load_imdb_cad()
-    elif data_name == 'k-imdb'     : train, dev, test = load_imdb()
-    elif data_name == 'k-yelp'     : train, dev, test = load_yelp()
-    elif data_name == 'k-semeval'  : train, dev, test = load_semeval()
-    elif data_name == 'k-amazon'   : train, dev, test = load_amazon()
+    if   data_name == 'k-imdb'      : train, dev, test = load_imdb()
+    elif data_name == 'k-imdb-cad'  : train, dev, test = load_imdb_cad()
+    elif data_name == 'k-imdb-comb' : train, dev, test = load_imdb_combine()
+    elif data_name == 'k-yelp'      : train, dev, test = load_yelp()
+    elif data_name == 'k-semeval'   : train, dev, test = load_semeval()
+    elif data_name == 'k-amazon'    : train, dev, test = load_amazon()
     else: raise ValueError(f"invalid single text dataset name: {data_name}")
     return train, dev, test
 
 #== Individual Data set Loader for CAD datasets ===================================================#
-def load_imdb_cad()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
-    # Download data if not already downloaded
-    data_path = f"{BASE_DIR}/data/cad-sentiment/combined"
+def load_imdb()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
+    # Download data if not already downloaded    
+    data_path = f"{BASE_DIR}/data/cad-sentiment/orig"
     if not os.path.isdir(data_path): download_cls_cad()
     
     train, dev, test = load_tsv_datasets(data_path)
     return train, dev, test
 
-def load_imdb()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
-    # Download data if not already downloaded    
-    data_path = f"{BASE_DIR}/data/cad-sentiment/orig"
+def load_imdb_cad()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
+    # Download data if not already downloaded
+    data_path = f"{BASE_DIR}/data/cad-sentiment/new"
+    if not os.path.isdir(data_path): download_cls_cad()
+    
+    train, dev, test = load_tsv_datasets(data_path)
+    return train, dev, test
+
+def load_imdb_combine()->Tuple[List[SingleText], List[SingleText], List[SingleText]]:
+    # Download data if not already downloaded
+    data_path = f"{BASE_DIR}/data/cad-sentiment/combined"
     if not os.path.isdir(data_path): download_cls_cad()
     
     train, dev, test = load_tsv_datasets(data_path)

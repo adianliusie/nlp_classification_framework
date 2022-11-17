@@ -22,3 +22,12 @@ class TransformerModel(torch.nn.Module):
         h = H[:, 0]                         #[bsz, 768] 
         logits = self.output_head(h)             #[bsz, C] 
         return SimpleNamespace(h=h, logits=logits)
+
+    def freeze_transformer(self):
+        for param in self.transformer.parameters():
+            param.requires_grad = False
+
+    def unfreeze_transformer(self):
+        for param in self.transformer.parameters():
+            param.requires_grad = True
+            

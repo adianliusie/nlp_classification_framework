@@ -3,8 +3,8 @@ import torch
 from typing import Tuple
 from types import SimpleNamespace
 
-from utils.meter import AverageMeter
-from utils.general import load_json
+from ..utils.meter import AverageMeter
+from ..utils.general import load_json
 
 class BaseLoss(object):
     def __init__(self):

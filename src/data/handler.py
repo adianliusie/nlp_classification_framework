@@ -6,7 +6,7 @@ from tqdm import tqdm
 from copy import deepcopy
 from functools import lru_cache
 
-from models.tokenizers import load_tokenizer
+from ..models.tokenizers import load_tokenizer
 from .load_classification_cad import load_cad_cls_data, CAD_CLS_DATA
 from .load_classification_hf import load_hf_cls_data, HF_CLS_DATA
 from .load_nli_hf import load_hf_nli_data, HF_NLI_DATA

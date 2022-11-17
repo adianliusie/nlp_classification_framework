@@ -3,8 +3,8 @@ import argparse
 import logging
 from statistics import mode
 
-from handlers.trainer import Trainer
-from utils.general import save_script_args
+from src.handlers.trainer import Trainer
+from src.utils.general import save_script_args
 
 # Load logger
 logging.basicConfig(
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # Model arguments
     model_parser = argparse.ArgumentParser(description='Arguments for system and model configuration')
     model_parser.add_argument('--path', type=str, help='path to experiment')
-    model_parser.add_argument('--transformer', default='electra-base',type=str, help='[bert, roberta, electra ...]')
+    model_parser.add_argument('--transformer', default='bert-base',type=str, help='[bert, roberta, electra ...]')
     model_parser.add_argument('--maxlen', default=512, type=int, help='max length of transformer inputs')
     model_parser.add_argument('--num-classes', default=2, type=int, help='number of classes (3 for NLI)')
 
@@ -30,7 +30,8 @@ if __name__ == '__main__':
     train_parser.add_argument('--epochs', default=20, type=int, help='size of data subset to use for debugging')
     train_parser.add_argument('--bsz', default=16, type=int, help='size of data subset to use for debugging')
     train_parser.add_argument('--lr', default=5e-5, type=float, help='learning rate')
-    
+    train_parser.add_argument('--freeze-trans', default=None, type=int, help='number of epochs to freeze transformer')
+
     train_parser.add_argument('--log-every', default=400, type=int, help='logging training metrics every number of examples')
     train_parser.add_argument('--wandb', action='store_true', help='if set, will log to wandb')
     train_parser.add_argument('--device', default='cuda', type=str, help='selecting device to use')

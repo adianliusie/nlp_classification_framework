@@ -1,6 +1,6 @@
 import os
 
-from utils.general import get_base_dir
+from ..utils.general import get_base_dir
 
 #get the base directory of the framework
 BASE_DIR = get_base_dir()

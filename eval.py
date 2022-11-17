@@ -1,8 +1,7 @@
 import argparse
 from statistics import mode
 
-from handlers.evaluater import Evaluator
-from utils.general import save_script_args
+from src.handlers.evaluater import Evaluator
 
 
 if __name__ == '__main__':

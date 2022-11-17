@@ -10,11 +10,11 @@ from typing import Optional
 from tqdm import tqdm
 
 
-from data.handler import DataHandler
 from .batcher import Batcher
-from models.models import TransformerModel 
-from utils.general import save_json, load_json
-from loss.cross_entropy import CrossEntropyLoss
+from ..data.handler import DataHandler
+from ..models.models import TransformerModel 
+from ..utils.general import save_json, load_json
+from ..loss.cross_entropy import CrossEntropyLoss
 
 
 # Create Logger
@@ -64,6 +64,11 @@ class Trainer(object):
         if args.wandb: self.setup_wandb(args)
 
         for epoch in range(1, args.epochs+1):
+            # freeze transformer for first couple of epochs if set
+            if args.freeze_trans:
+                if epoch <= args.freeze_trans: self.model.freeze_transformer()
+                else: self.model.unfreeze_transformer()
+
             #== Training =============================================
             train_batches = self.batcher(
                 data = train, 

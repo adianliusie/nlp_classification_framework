@@ -8,8 +8,8 @@ import torch.nn.functional as F
 
 
 from .trainer import Trainer
-from data.handler import DataHandler
-from loss.cross_entropy import CrossEntropyLoss
+from ..data.handler import DataHandler
+from ..loss.cross_entropy import CrossEntropyLoss
 
 class Evaluator(Trainer):
     """ Evaluator class- inherits Trainer so has all experiment methods
