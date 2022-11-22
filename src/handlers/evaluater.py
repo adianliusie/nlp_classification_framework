@@ -67,23 +67,24 @@ class Evaluator(Trainer):
 
     #== loading and saving functions ==============================================================#
     def cache_probs(self, probs, dataset:str, mode:str):
-        eval_name = f'{dataset}_{mode}'
-        pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
-        print(pred_path)
+        pred_path = self.get_pred_path(dataset, mode)
         with open(pred_path, 'wb') as handle:
             pickle.dump(probs, handle)
     
     def load_cached_probs(self, dataset:str, mode:str):
-        eval_name = f'{dataset}_{mode}'
-        pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
+        pred_path = self.get_pred_path(dataset, mode)
         with open(pred_path, 'rb') as handle:
             probs = pickle.load(handle)
         return probs
     
     def probs_exist(self, dataset:str, mode:str):
+        pred_path = self.get_pred_path(dataset, mode)
+        return os.path.isfile(pred_path)
+
+    def get_pred_path(self, dataset:str, mode:str)->str:
         eval_name = f'{dataset}_{mode}'
         pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
-        return os.path.isfile(pred_path)
+        return pred_path
 
     #== general eval methods ======================================================================#
     @staticmethod

@@ -30,6 +30,7 @@ if __name__ == '__main__':
     train_parser.add_argument('--epochs', default=20, type=int, help='size of data subset to use for debugging')
     train_parser.add_argument('--bsz', default=16, type=int, help='size of data subset to use for debugging')
     train_parser.add_argument('--lr', default=5e-5, type=float, help='learning rate')
+    train_parser.add_argument('--grad-clip', default=1, type=float, help='gradient clipping')
     train_parser.add_argument('--freeze-trans', default=None, type=int, help='number of epochs to freeze transformer')
 
     train_parser.add_argument('--log-every', default=400, type=int, help='logging training metrics every number of examples')

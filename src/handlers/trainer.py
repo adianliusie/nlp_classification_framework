@@ -80,6 +80,8 @@ class Trainer(object):
 
                 optimizer.zero_grad()
                 output.loss.backward()
+                if args.grad_clip:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), args.grad_clip)
                 optimizer.step()
         
                 # Print train performance every log_every samples
@@ -93,7 +95,7 @@ class Trainer(object):
                         ex_step = step*args.bsz
                     )
 
-                    if args.wandb: self.log_wandb(args, metrics, mode='train')
+                    if args.wandb: self.log_wandb(metrics, mode='train')
                     self.model_loss.reset_metrics()   
             
             #== Validation ============================================
@@ -185,9 +187,10 @@ class Trainer(object):
     def setup_exp(self, exp_path: str, args: namedtuple):
         self.exp_path = exp_path
 
+        # prepare experiment directory structure
         if not os.path.isdir(self.exp_path):
             os.makedirs(self.exp_path)
-        
+
         mod_path = os.path.join(self.exp_path, 'models')
         if not os.path.isdir(mod_path):
             os.makedirs(mod_path)
@@ -196,6 +199,14 @@ class Trainer(object):
         if not os.path.isdir(eval_path):
             os.makedirs(eval_path)
 
+        # add file handler to logging
+        fh = logging.FileHandler(os.path.join(exp_path, 'train.log'))
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        fh.setFormatter(formatter)
+        fh.setLevel(logging.INFO)
+        logger.addHandler(fh)
+
+        #save model arguments
         self.save_args('model_args.json', args)
 
     def to(self, device):
@@ -218,13 +229,14 @@ class Trainer(object):
             project='shortcuts-{}'.format(args.dataset),
             entity='adian',
             name=exp_name, 
-            group=group_name 
+            group=group_name,
+            dir=self.exp_path
         )
 
         # save experiment config details
         cfg = {
             'dataset': args.dataset,
-            'bsz': args.num_tokens,
+            'bsz': args.bsz,
             'lr': args.lr,
             'transformer': self.model_args.transformer,
         }
