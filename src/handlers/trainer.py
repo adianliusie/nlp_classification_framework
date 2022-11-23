@@ -14,8 +14,8 @@ from .batcher import Batcher
 from ..data.handler import DataHandler
 from ..models.models import TransformerModel 
 from ..utils.general import save_json, load_json
+from ..utils.torch import set_rand_seed
 from ..loss.cross_entropy import CrossEntropyLoss
-
 
 # Create Logger
 logging.basicConfig(
@@ -32,6 +32,12 @@ class Trainer(object):
         self.setup_helpers(args)
 
     def setup_helpers(self, args: namedtuple):
+        # set random seed
+        if (args.rand_seed is None) and ('/seed-' in self.exp_path):
+            args.rand_seed = int(self.exp_path.split('/seed-')[-1])
+        set_rand_seed(args.rand_seed)
+
+        # set up attributes 
         self.model_args = args
         self.data_handler = DataHandler(trans_name=args.transformer)
         self.batcher = Batcher(max_len=args.maxlen)
@@ -215,15 +221,12 @@ class Trainer(object):
         self.batcher.to(device)
 
     def setup_wandb(self, args: namedtuple):
-        group_name = self.exp_path
-
-        # remove everything before */trained_models for the group name 
-        group_name = re.sub(r'^.*?trained_models', '', group_name)
+        # remove everything before */trained_models for exp_name
         exp_name = re.sub(r'^.*?trained_models', '', self.exp_path)
 
-        # remove the final -vi from the group name
-        group_name = '-v'.join(group_name.split('-v')[:-1])
-        
+        # remove the final -seed-i from the group name
+        group_name = '/seed'.join(exp_name.split('/seed')[:-1])
+
         #init wandb project
         wandb.init(
             project='shortcuts-{}'.format(args.dataset),

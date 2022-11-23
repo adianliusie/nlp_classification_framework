@@ -65,7 +65,7 @@ class Evaluator(Trainer):
             probs[ex_id] = prob.cpu().numpy()
         return probs
 
-    #== loading and saving functions ==============================================================#
+    #== loading and saving probabilities ==========================================================#
     def cache_probs(self, probs, dataset:str, mode:str):
         pred_path = self.get_pred_path(dataset, mode)
         with open(pred_path, 'wb') as handle:
@@ -85,6 +85,47 @@ class Evaluator(Trainer):
         eval_name = f'{dataset}_{mode}'
         pred_path = os.path.join(self.exp_path, 'eval', f'{eval_name}.pk')
         return pred_path
+
+    #== loading and caching hidden representations ================================================#
+    def load_layer_repr(self, dataset:str=None, mode:str='test', layer:int=11, lim:int=None)->dict:
+        h_path = self.get_h_path(dataset, mode, layer)
+
+        if not os.path.isfile(h_path):
+            self.setup_helpers()
+            layer_repr = self.generate_layer_repr(dataset, mode, layer)
+            self.cache_h(layer_repr, dataset, mode, layer)
+
+    @torch.no_grad()
+    def generate_layer_repr(self, dataset:str=None, mode:str='test', layer:int=None, lim:int=None):
+        #prepare data for cases where data_name is given
+        data = self.data_handler.prep_split(dataset, mode=mode, lim=lim)
+
+        #create batches
+        eval_batches = self.batcher(data=data, bsz=1, shuffle=False)
+        
+        self.to(self.device)
+        self.model.eval()
+
+        #get output vectors
+        output_dict = {}
+        for batch in tqdm(eval_batches):
+            ex_id = batch.ex_id[0]
+            output = self.model.transformer(
+                input_ids=batch.input_ids, 
+                attention_mask=batch.attention_mask,
+                output_hidden_states=True
+            )
+            H = output.hidden_states[layer]
+            output_dict[ex_id] = H[:, 0].squeeze(0).cpu().numpy()
+            
+        return output_dict
+
+    def get_h_path(self, dataset:str, mode:str, layer:int)->str:
+        CACHE_PATH = '/home/al826/rds/hpc-work/2022/shortcuts/spurious-nlp/linear_probe/cached_h'
+        layer = layer % 12
+        repr_path = os.path.join(CACHE_PATH, f'{dataset}_{mode}_{layer}.pk')
+        return repr_path
+
 
     #== general eval methods ======================================================================#
     @staticmethod
